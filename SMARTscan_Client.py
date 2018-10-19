@@ -1,4 +1,6 @@
+'''This is a script to assist data processing for SMARTscan field engineers'''
 import os
+import sys
 import ftplib
 import glob
 import zipfile
@@ -14,7 +16,7 @@ ClientConfig = {
     }
 
 # #######################################################################
-# Function definition for data processing
+# Function definitions for data processing
 
 def GetWorkPath():
     '''Get working path for python to recognise data'''
@@ -65,33 +67,44 @@ def UploadFileToFTP(origDir, remoteDir):
             file.close()
     ftpIns.close()
 
-def ZipAllFile(directory): 
+def ZipAllFile(InputPath, outputPath): 
     '''Zip all file frm a directory, parent directory'''
-    zf = zipfile.ZipFile('projectname.zip','w',zipfile.ZIP_DEFLATED)
-    file_paths = [] 
-    os.chdir(directory)
-    files = glob.glob("*")
-    # crawling through directory and subdirectories 
-    for root, dirs, files in os.walk(directory):
-        for file in files:
-            zf.write(os.path.join(root, file))
-    zf.close()
+    parent_folder = os.path.dirname(InputPath)
+    contents = os.walk(parent_folder)
+    zip_file = zipfile.ZipFile(outputPath,'w', zipfile.ZIP_DEFLATED)
+    try:
+        for root, folders, allfiles in contents:
+            # Add all directories to zipfile without parent directory tree
+            for folderName in folders:
+                if (folderName == "2-Image" or folderName == "3-Photo" or folderName == "4-Report"):
+                    absolute_path = os.path.join(root, folderName)
+                    relative_path = absolute_path.replace(parent_folder + '\\','')
+                    print "Adding '%s' to directory archive." % absolute_path
+                    zip_file.write(absolute_path, relative_path)
 
-# ########################################################################
-# Main function to implement program
-# List all the image sources from the directory
+                    #write files to zip file
+                    os.chdir(absolute_path)
+                    files = os.listdir(absolute_path)
+                    for file in files:
+                        filePath = os.path.join(absolute_path,file)
+                        zip_file.write(filePath, relative_path+ '\\' + file)
+                        print "Adding '%s' file to archive." % filePath
+    
+        print "'%s' created successfully." % outputPath
+    except IOError, message:
+        print message
+        sys.exit(1)
+    except OSError, message:
+        print message
+        sys.exit(1)
+    except zipfile.BadZipfile, message:
+        print message
+        sys.exit(1)
+    finally:
+        zip_file.close()
 
-# GPR images
-#imgFd = os.path.join(GetWorkPath(),'2-Image')
-#UploadFileToFTP(ImgFd, '2-Image')
+#################################################################################
 
-# Photos
-#phoFd = os.path.join(GetWorkPath(),'3-Photo')
-#UploadFileToFTP(phoFd, '3-Photo')
-
-# Reports
-#repFd = os.path.join(GetWorkPath(),'4-Report')
-#UploadFileToFTP(repFd, '4-Report')
-
-
+zipfilepath = os.path.join(os.getcwd(),'sample1.zip')
+ZipAllFile(os.getcwd(),zipfilepath)
 
